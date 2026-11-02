@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>APP V9 Beta · Recuperación de acceso</title>
+<style>body{font:16px system-ui;background:#f5f7fb;color:#182235;padding:32px 12px}.card{max-width:480px;margin:auto;background:white;border:1px solid #dde4f0;border-radius:16px;padding:24px}input,button{box-sizing:border-box;width:100%;padding:12px;margin:8px 0 16px;border-radius:8px;font:inherit}input{border:1px solid #b8c4d4}button{border:0;background:#2149ad;color:white;cursor:pointer}button:disabled{opacity:.5}#message{white-space:pre-wrap;overflow-wrap:anywhere}small{color:#566479}</style></head>
+<body><main class="card"><h1>APP V9 Beta</h1><p>Recuperar contraseña del usuario de prueba.</p>
+<div id="request"><label for="email">Correo de Supabase Authentication</label><input id="email" type="email" autocomplete="email" required><button id="send">Enviar correo de recuperación</button></div>
+<div id="change" hidden><label for="newpass">Nueva contraseña</label><input id="newpass" type="password" autocomplete="new-password" minlength="12"><label for="confirm">Repetir contraseña</label><input id="confirm" type="password" autocomplete="new-password" minlength="12"><button id="save">Guardar nueva contraseña</button></div>
+<p id="message" role="status">Preparando página…</p><small>La contraseña se envía directamente a Supabase mediante HTTPS. No compartas enlaces de recuperación ni tokens.</small></main>
+<script type="module">
+import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.57.0';
+const url='https://odfrhfvpijnbfvrlkxkn.supabase.co',key='sb_publishable_rs-cB3tiIhg1IVBNPxbSrw_P_rHyVCd';
+const sb=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:true}});
+const el=id=>document.getElementById(id),message=s=>el('message').textContent=s;
+const error=new URLSearchParams(location.hash.slice(1));
+if(error.has('error'))message('El enlace de recuperación fue rechazado o expiró. Solicita uno nuevo.');
+else message('Puedes solicitar un correo de recuperación.');
+sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'&&session){el('request').hidden=true;el('change').hidden=false;message('Enlace verificado. Establece una contraseña nueva.');}});
+const {data:{session}}=await sb.auth.getSession();
+if(session&&new URLSearchParams(location.hash.slice(1)).has('access_token')){el('request').hidden=true;el('change').hidden=false;message('Sesión de recuperación detectada. Establece una contraseña nueva.');}
+el('send').onclick=async()=>{const email=el('email').value.trim();if(!email){message('Introduce el correo.');return;}el('send').disabled=true;const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});message(error?'No se pudo enviar: '+error.message:'Si la cuenta existe, recibirás un correo. Usa solamente el enlace más reciente.');el('send').disabled=false;};
+el('save').onclick=async()=>{const p=el('newpass').value;if(p.length<12||p!==el('confirm').value){message('Usa al menos 12 caracteres y confirma la misma contraseña.');return;}el('save').disabled=true;const {error}=await sb.auth.updateUser({password:p});el('newpass').value='';el('confirm').value='';if(error){message('No se pudo cambiar: '+error.message);el('save').disabled=false;return;}await sb.auth.signOut();history.replaceState(null,'',location.pathname);message('Contraseña actualizada. Ya puedes iniciar sesión en la página de pruebas.');el('change').hidden=true;el('request').hidden=true;};
+</script></body></html>
